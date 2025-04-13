@@ -25,6 +25,9 @@ from sklearn.ensemble import (
 )
 import mlflow
 
+import dagshub
+dagshub.init(repo_owner='Pranaynepalia', repo_name='networksecurity', mlflow=True)
+
 
 class ModelTrainer:
     def __init__(self,model_trainer_config:ModelTrainerConfig,data_transformation_artifact:DataTransformationArtifact):
@@ -34,6 +37,22 @@ class ModelTrainer:
         except Exception as e:
             raise NetworkSecurityException(e,sys)
         
+    def track_mlflow(self, best_model, classificationmetric):
+        logging.info(f"Starting MLflow tracking for {type(best_model).__name__}")
+    
+        with mlflow.start_run():
+            f1_score = classificationmetric.f1_score
+            precision_score = classificationmetric.precision_score
+            recall_score = classificationmetric.recall_score
+
+            mlflow.log_metric("f1_score", f1_score)
+            mlflow.log_metric("precision_score", precision_score)
+            mlflow.log_metric("recall_score", recall_score)
+            
+            # Log the model (optional)
+            mlflow.sklearn.log_model(best_model, "model")
+            logging.info(f"Successfully tracked model metrics: f1={f1_score}, precision={precision_score}, recall={recall_score}")
+            
 
         
     def train_model(self,X_train,y_train,x_test,y_test):
@@ -103,6 +122,8 @@ class ModelTrainer:
 
         Network_Model=NetworkModel(preprocessor=preprocessor,model=best_model)
         save_object(self.model_trainer_config.trained_model_file_path,obj=NetworkModel)
+
+        save_object("final_model/model.pkl",best_model)
         
         
         ## Model Trainer Artifact
@@ -113,17 +134,6 @@ class ModelTrainer:
         logging.info(f"Model trainer artifact: {model_trainer_artifact}")
         return model_trainer_artifact
 
-    def track_mlflow(self, model, metrics):
-    
-        try:
-            logging.info(f"Model: {type(model).__name__}, Metrics: {metrics}")
-        except Exception as e:
-            logging.warning(f"MLflow tracking failed: {str(e)}")
-        
-        
-
-
-       
     
     
         
